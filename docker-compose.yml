@@ -1,0 +1,42 @@
+# Use root/example user/password credentials
+version: '3.1'
+
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 80:80
+    volumes:
+      - ./src:/var/www/html/
+    #security_opt: Campo para carregar o perfil apparmor ou selinux
+    # - phparmor
+
+  db:
+    image: mysql
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+    volumes:
+      - mysql-data:/var/lib/mysql
+    cap_drop:
+      - all
+    cap_add:
+      #- CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    #security_opt: Campo para carregar o perfil apparmor ou selinux
+    #  - dbarmor
+
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+
+volumes:
+  mysql-data:
