@@ -1,42 +1,99 @@
 # Use root/example user/password credentials
-version: '3.1'
+version: '2.4'
 
 services:
   php:
+    links:  #Restringir comunicacao entre containers + icc=false
+      - "db"
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - 80:80
+      - 127.0.0.1:80:80 #Especific host interface
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run/apache2
+      - /run/lock
     volumes:
       - ./src:/var/www/html/
-    #security_opt: Campo para carregar o perfil apparmor ou selinux
-    # - phparmor
+    cap_drop: #Dropar capabilidades
+      - all
+    cap_add:
+      - NET_BIND_SERVICE
+    restart: on-failure:5
+    cpu_shares: 1024
+    mem_limit: 10m
+    mem_reservation: 6m
+    pids_limit: 100
+    healthcheck: #Verificar status do container
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    security_opt: #Garantir que nao ganhe privilegios
+      - no-new-privileges 
+    # - apachearmor Campo para carregar o perfil apparmor ou selinux
 
   db:
-    image: mysql
+    links:
+      - "adminer"
+    build:
+      context: .
+      dockerfile: Dockerfile_db
+    #image: mysql
     command: --default-authentication-plugin=mysql_native_password
-    restart: always
     environment:
       MYSQL_ROOT_PASSWORD: example
+    read_only: true
+    tmpfs:
+    - /tmp
+    - /run/mysqld
     volumes:
       - mysql-data:/var/lib/mysql
     cap_drop:
       - all
     cap_add:
-      #- CHOWN
       - SETGID
       - SETUID
       - DAC_OVERRIDE
-    #security_opt: Campo para carregar o perfil apparmor ou selinux
-    #  - dbarmor
+    restart: on-failure:5
+    cpu_shares: 1024
+    mem_limit: 380m
+    mem_reservation: 180m
+    pids_limit: 100
+    healthcheck:
+      test: ["CMD", 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$$MYSQL_ROOT_PASSWORD' ]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+    security_opt:
+      - no-new-privileges 
+    #  - dbarmor Campo para carregar o perfil apparmor ou selinux
 
 
   adminer:
     image: adminer
-    restart: always
     ports:
-      - 8080:8080
+      - 127.0.0.1:8080:8080
+    restart: on-failure:5
+    cpu_shares: 1024
+    mem_limit: 10m
+    mem_reservation: 6m
+    pids_limit: 100
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    security_opt:
+      - no-new-privileges
+    
 
 volumes:
   mysql-data:
