@@ -3,13 +3,13 @@ version: '2.4'
 
 services:
   php:
-    links:  #Restringir comunicacao entre containers + icc=false
+    links:  #Definir o serviço que precisa de conexão (banco de dados)
       - "db"
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - 127.0.0.1:80:80 #Especific host interface
+      - 127.0.0.1:80:80 #Especificar interface de host
     read_only: true
     tmpfs:
       - /tmp
@@ -17,15 +17,15 @@ services:
       - /run/lock
     volumes:
       - ./src:/var/www/html/
-    cap_drop: #Dropar capabilidades
+    cap_drop: #Controlar capacidades
       - all
     cap_add:
       - NET_BIND_SERVICE
     restart: on-failure:5
-    cpu_shares: 1024
-    mem_limit: 10m
+    cpu_percent: 20 #Restringir CPU
+    mem_limit: 10m #Restringir memória
     mem_reservation: 6m
-    pids_limit: 100
+    pids_limit: 100 #Restringir PID
     healthcheck: #Verificar status do container
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 1m30s
@@ -34,7 +34,6 @@ services:
       start_period: 40s
     security_opt: #Garantir que nao ganhe privilegios
       - no-new-privileges 
-    # - apachearmor Campo para carregar o perfil apparmor ou selinux
 
   db:
     links:
@@ -59,9 +58,9 @@ services:
       - SETUID
       - DAC_OVERRIDE
     restart: on-failure:5
-    cpu_shares: 1024
+    cpu_percent: 20
     mem_limit: 380m
-    mem_reservation: 180m
+    mem_reservation: 360m
     pids_limit: 100
     healthcheck:
       test: ["CMD", 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$$MYSQL_ROOT_PASSWORD' ]
@@ -78,7 +77,7 @@ services:
     ports:
       - 127.0.0.1:8080:8080
     restart: on-failure:5
-    cpu_shares: 1024
+    cpu_percent: 20
     mem_limit: 10m
     mem_reservation: 6m
     pids_limit: 100
